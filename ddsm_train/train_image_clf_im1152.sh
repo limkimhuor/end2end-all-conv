@@ -1,19 +1,19 @@
 #!/bin/bash
 
-TRAIN_DIR="Combined_full_images/full_train_1152x896"
-VAL_DIR="Combined_full_images/full_val_1152x896"
-TEST_DIR="Combined_full_images/full_test_1152x896"
-PATCH_STATE="Combined_patches_im1152_224_s1/resnet_prt_best1.h5"
-BEST_MODEL="Combined_full_images/resnet_1152x896_prt_addtop1.h5"
+TRAIN_DIR="/Volumes/Transcend/gen/proceed_images/832x1152_train"
+VAL_DIR="/Volumes/Transcend/gen/proceed_images/832x1152_valid"
+TEST_DIR="/Volumes/Transcend/gen/proceed_images/832x1152_test"
+PATCH_STATE="Combined_patches_im1152_224_s10/s10_YaroslavNet.h5"
+BEST_MODEL="Combined_full_images/ddsm_YaroslavNet_s10.h5"
 FINAL_MODEL="NOSAVE"
 
-export NUM_CPU_CORES=4
+export NUM_CPU_CORES=2
 
 # 255/65535 = 0.003891.
-python image_clf_train.py \
+python3 image_clf_train.py \
 	--patch-model-state $PATCH_STATE \
 	--no-resume-from \
-    --img-size 1152 896 \
+    --img-size 1152 832 \
     --no-img-scale \
     --rescale-factor 0.003891 \
 	--featurewise-center \
@@ -21,11 +21,10 @@ python image_clf_train.py \
     --no-equalize-hist \
     --top-depths 512 512 \
     --top-repetitions 3 3 \
-	--kept-layer-idx -5 \
     --batch-size 20 \
     --train-bs-multiplier 0.5 \
 	--augmentation \
-	--class-list neg pos \
+	--class-list bi_rads0 bi_rads1 bi_rads2 bi_rads3 bi_rads4 bi_rads5 \
 	--nb-epoch 1 \
     --all-layer-epochs 2 \
     --no-load-val-ram \
@@ -33,7 +32,6 @@ python image_clf_train.py \
     --optimizer adam \
     --weight-decay 0.0001 \
     --weight-decay2 0.0001 \
-    --bias-multiplier 0.1 \
     --hidden-dropout 0.0 \
     --hidden-dropout2 0.0 \
     --init-learningrate 0.001 \
@@ -45,4 +43,5 @@ python image_clf_train.py \
 	--neg-cls-weight 1.0 \
 	--best-model $BEST_MODEL \
 	--final-model $FINAL_MODEL \
+    --patch-net yaroslav \
 	$TRAIN_DIR $VAL_DIR $TEST_DIR	

@@ -1,7 +1,7 @@
 # Originally from: https://github.com/kuza55/keras-extras/blob/master/utils/multi_gpu.py
-from keras.layers.merge import concatenate
-from keras.layers.core import Lambda
-from keras.models import Model
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.layers import Lambda
+from tensorflow.keras import Model
 import tensorflow as tf
 
 def make_parallel(model, gpu_count):

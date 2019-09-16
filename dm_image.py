@@ -2,13 +2,13 @@ import numpy as np
 from numpy.random import RandomState
 from os import path
 import os
-from keras.preprocessing.image import (
+from tensorflow.keras.preprocessing.image import (
     ImageDataGenerator, 
     Iterator, 
     # NumpyArrayIterator
 )
-from keras.utils.np_utils import to_categorical 
-import keras.backend as K
+from tensorflow.keras.utils import to_categorical 
+import tensorflow.keras.backend as K
 import cv2
 import dicom
 from dm_preprocess import DMImagePreprocessor as prep
@@ -510,9 +510,9 @@ class DMExamListIterator(Iterator):
                         gs_255=self.gs_255)
             except ValueError:
                 if self.err_counter < 10:
-                    print "Error encountered reading an image dataframe:", 
-                    print img_df, "Use a blank image instead."
-                    print "Exam caused trouble:", exam
+                    print("Error encountered reading an image dataframe:") 
+                    print(img_df, "Use a blank image instead.")
+                    print("Exam caused trouble:", exam)
                     self.err_counter += 1
                 img = np.zeros(self.target_size, dtype='float32')
 
@@ -835,8 +835,8 @@ class DMCandidROIIterator(Iterator):
             # blob detection.
             key_pts = self.blob_detector.detect((img/img.max()*255).astype('uint8'))
             if int(self.verbose) > 1:
-                print "%s: blob detection found %d key points." % \
-                    (self.filenames[fi], len(key_pts))
+                print("%s: blob detection found %d key points." % \
+                    (self.filenames[fi], len(key_pts)))
             if len(key_pts) > nb_img_roi:
                 # key_pts = rng.choice(key_pts, self.roi_per_img, replace=False)
                 key_pts = clust_kpts(key_pts, nb_img_roi, self.seed)
@@ -1404,12 +1404,3 @@ class DMImageDataGenerator(ImageDataGenerator):
             save_prefix=save_prefix,
             save_format=save_format,
             follow_links=follow_links)
-
-
-
-
-
-
-
-
-

@@ -1,24 +1,24 @@
 # This code is originally from: https://github.com/raghakot/keras-resnet
 # Modified by Li Shen for DM challenge.
-from keras.models import Model
-from keras.layers import (
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import (
     Input,
     Activation,
     Dropout,
     Dense,
     Flatten
 )
-from keras.layers.merge import concatenate, add
-from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import (
+from tensorflow.keras.layers import concatenate, add
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import (
     MaxPooling2D,
     AveragePooling2D,
     GlobalAveragePooling2D
 )
-from keras.layers.normalization import BatchNormalization
-from keras.layers.core import activations
-from keras.regularizers import l1, l2, l1_l2
-from keras import backend as K
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras import activations
+from tensorflow.keras.regularizers import l1, l2, l1_l2
+from tensorflow.keras import backend as K
 # import warnings
 # warnings.filterwarnings('error')
 
@@ -82,7 +82,7 @@ def _shortcut(input, residual, weight_decay=.0001, dropout=.0, identity=True,
     # 1 X 1 conv if shape is different. Else identity.
     # if stride_width > 1 or stride_height > 1 or not equal_channels:
     if not identity:
-        shortcut = Conv2D(filters=residual._keras_shape[CHANNEL_AXIS],
+        shortcut = Conv2D(filters=K.int_shape(residual)[CHANNEL_AXIS],
                           kernel_size=(1, 1), strides=strides,
                           kernel_initializer="he_normal", padding="valid", 
                           kernel_regularizer=l2(weight_decay))(input)
@@ -617,4 +617,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -1,6 +1,6 @@
 import os, argparse, sys
 import numpy as np
-from keras.models import load_model, Model
+from tensorflow.keras.models import load_model, Model
 from dm_image import DMImageDataGenerator
 from dm_keras_ext import (
     load_dat_ram,
@@ -11,8 +11,52 @@ from dm_keras_ext import (
 from dm_resnet import add_top_layers, bottleneck_org
 from dm_multi_gpu import make_parallel
 import warnings
-import exceptions
-warnings.filterwarnings('ignore', category=exceptions.UserWarning)
+
+from sklearn.model_selection import train_test_split
+import pandas as pd
+# import exceptions
+warnings.filterwarnings('ignore')
+
+def get_dataset(dataset_path, opts):
+     # first check existing split. If exists, just read csv
+    train_dataset_file = os.path.join(dataset_path, 'train_dataset.csv')
+    valid_dataset_file = os.path.join(dataset_path, 'valid_dataset.csv')
+    test_dataset_file = os.path.join(dataset_path, 'test_dataset.csv')
+    if os.path.exists(train_dataset_file) and \
+            os.path.exists(valid_dataset_file) and \
+            os.path.exists(test_dataset_file):
+        
+        train_dataset = parse_dataset(train_dataset_file)
+        valid_dataset = parse_dataset(valid_dataset_file)
+        test_dataset = parse_dataset(test_dataset_file)
+
+    #otherwise, we create a new data split taking care that different views of the same breast appear in the same set
+    else:
+        all_dataset_file = os.path.join(dataset_path, opts.all_dataset_file)
+        X_tot = parse_dataset(all_dataset_file)
+        print('created ', len(X_tot), ' of examples.')
+
+        train_dataset, valid_test_dataset = train_test_split(X_tot, test_size=0.2, random_state=42)
+        valid_dataset, test_dataset = train_test_split(valid_test_dataset, test_size=0.5, random_state=42)
+        
+        # Generate dataset to csv
+        header = ['file_path', 'bi_rads']
+        pd.DataFrame(train_dataset).to_csv(train_dataset_file, header=header, index=False)
+        pd.DataFrame(valid_dataset).to_csv(valid_dataset_file, header=header, index=False)
+        pd.DataFrame(test_dataset).to_csv(test_dataset_file, header=header, index=False)
+
+    print('"{0}" training images'.format(len(train_dataset)))
+    print('"{0}" validation images'.format(len(valid_dataset)))
+    print('"{0}" testing images'.format(len(test_dataset)))
+
+    return train_dataset, valid_dataset, test_dataset
+
+def parse_dataset(dataset_path):
+    X = []
+    for index, row in pd.read_csv(dataset_path).iterrows():
+        X.append((row['file_path'], row['bi_rads']))
+    X = sorted(list(set(X)), key=lambda tup: tup[0])
+    return X
 
 
 def run(train_dir, val_dir, test_dir, patch_model_state=None, resume_from=None,
@@ -95,24 +139,24 @@ def run(train_dir, val_dir, test_dir, patch_model_state=None, resume_from=None,
         dup_3_channels = False
     if load_train_ram:
         raw_imgen = DMImageDataGenerator()
-        print "Create generator for raw train set"
+        print("Create generator for raw train set")
         raw_generator = raw_imgen.flow_from_directory(
             train_dir, target_size=img_size, target_scale=img_scale, 
             rescale_factor=rescale_factor,
             equalize_hist=equalize_hist, dup_3_channels=dup_3_channels,
             classes=class_list, class_mode='categorical', 
             batch_size=train_bs, shuffle=False)
-        print "Loading raw train set into RAM.",
+        print("Loading raw train set into RAM.")
         sys.stdout.flush()
         raw_set = load_dat_ram(raw_generator, raw_generator.nb_sample)
-        print "Done."; sys.stdout.flush()
-        print "Create generator for train set"
+        print("Done."); sys.stdout.flush()
+        print("Create generator for train set")
         train_generator = train_imgen.flow(
             raw_set[0], raw_set[1], batch_size=train_bs, 
             auto_batch_balance=auto_batch_balance, 
             shuffle=True, seed=random_seed)
     else:
-        print "Create generator for train set"
+        print("Create generator for train set")
         train_generator = train_imgen.flow_from_directory(
             train_dir, target_size=img_size, target_scale=img_scale,
             rescale_factor=rescale_factor,
@@ -121,7 +165,7 @@ def run(train_dir, val_dir, test_dir, patch_model_state=None, resume_from=None,
             auto_batch_balance=auto_batch_balance, batch_size=train_bs, 
             shuffle=True, seed=random_seed)
 
-    print "Create generator for val set"
+    print("Create generator for val set")
     validation_set = val_imgen.flow_from_directory(
         val_dir, target_size=img_size, target_scale=img_scale,
         rescale_factor=rescale_factor,
@@ -130,10 +174,10 @@ def run(train_dir, val_dir, test_dir, patch_model_state=None, resume_from=None,
         batch_size=batch_size, shuffle=False)
     sys.stdout.flush()
     if load_val_ram:
-        print "Loading validation set into RAM.",
+        print("Loading validation set into RAM.")
         sys.stdout.flush()
         validation_set = load_dat_ram(validation_set, validation_set.nb_sample)
-        print "Done."; sys.stdout.flush()
+        print("Done."); sys.stdout.flush()
 
     # ==================== Model training ==================== #
     # Do 2-stage training.
@@ -173,16 +217,16 @@ def run(train_dir, val_dir, test_dir, patch_model_state=None, resume_from=None,
         min_loss_locs, = np.where(loss_hist == min(loss_hist))
         best_val_loss = loss_hist[min_loss_locs[0]]
         best_val_accuracy = acc_hist[min_loss_locs[0]]
-        print "\n==== Training summary ===="
-        print "Minimum val loss achieved at epoch:", min_loss_locs[0] + 1
-        print "Best val loss:", best_val_loss
-        print "Best val accuracy:", best_val_accuracy
+        print("\n==== Training summary ====")
+        print("Minimum val loss achieved at epoch:", min_loss_locs[0] + 1)
+        print("Best val loss:", best_val_loss)
+        print("Best val accuracy:", best_val_accuracy)
 
     if final_model != "NOSAVE":
         image_model.save(final_model)
 
     # ==== Predict on test set ==== #
-    print "\n==== Predicting on test set ===="
+    print("\n==== Predicting on test set ====")
     test_generator = test_imgen.flow_from_directory(
         test_dir, target_size=img_size, target_scale=img_scale,
         rescale_factor=rescale_factor,
@@ -193,18 +237,18 @@ def run(train_dir, val_dir, test_dir, patch_model_state=None, resume_from=None,
     #### DEBUG ####
     # test_samples = 5
     #### DEBUG ####
-    print "Test samples =", test_samples
-    print "Load saved best model:", best_model + '.',
+    print("Test samples =", test_samples)
+    print("Load saved best model:", best_model + '.')
     sys.stdout.flush()
     org_model.load_weights(best_model)
-    print "Done."
+    print("Done.")
     # test_steps = int(test_generator.nb_sample/batch_size)
     # test_res = image_model.evaluate_generator(
     #     test_generator, test_steps, nb_worker=nb_worker, 
     #     pickle_safe=True if nb_worker > 1 else False)
     test_auc = DMAucModelCheckpoint.calc_test_auc(
         test_generator, image_model, test_samples=test_samples)
-    print "AUROC on test set:", test_auc
+    print("AUROC on test set:", test_auc)
 
 
 if __name__ == '__main__':
@@ -286,6 +330,9 @@ if __name__ == '__main__':
     parser.add_argument("--final-model", "-fm", dest="final_model", type=str, 
                         default="NOSAVE")
 
+    parser.add_argument("--dataset_path", dest="dataset_path", type=str, default='./metadata/')
+    parser.add_argument("--all_dataset_file", dest="all_dataset_file", type=str, default='dataset_all.csv')
+
     args = parser.parse_args()
     if args.patch_model_state is None and args.resume_from is None:
         raise Exception('One of [patch_model_state, resume_from] must not be None.')
@@ -335,17 +382,22 @@ if __name__ == '__main__':
         best_model=args.best_model,        
         final_model=args.final_model        
     )
-    print "\ntrain_dir=%s" % (args.train_dir)
-    print "val_dir=%s" % (args.val_dir)
-    print "test_dir=%s" % (args.test_dir)
-    print "\n>>> Model training options: <<<\n", run_opts, "\n"
+
+    print("Get dataset")
+    X_tr, X_val, X_te = get_dataset(args.dataset_path, args)
+
+    print("Total number of examples: ", len(X_tr) + len(X_val) + len(X_te))
+    # Train a network and print a bunch of information.
+    pos_val = pos = 0
+    for row in X_val:
+        pos_val += (row[1] > 0)
+    for row in X_tr:
+        pos += (row[1] > 0)
+    print("Number of positives in validation set: ", pos_val, " in training: ", pos)
+    print("Dataset done!")
+
+    print("\ntrain_dir=%s" % (args.train_dir))
+    print("val_dir=%s" % (args.val_dir))
+    print("test_dir=%s" % (args.test_dir))
+    print("\n>>> Model training options: <<<\n", run_opts, "\n")
     run(args.train_dir, args.val_dir, args.test_dir, **run_opts)
-
-
-
-
-
-
-
-
-

@@ -9,3 +9,5 @@ nohup.out
 *.sublime-*
 .ipynb_checkpoints
 *.pyc
+ddsm_train/Combined_full_images/
+ddsm_train/Combined_patches_im1152_224_s10/
